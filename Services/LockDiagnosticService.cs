@@ -163,8 +163,9 @@ namespace Kirin_Tool.Services
                     if (fastboot != null)
                     {
                         bool fullMatch = ContainsSequence(fastboot, otaFastboot, out int fullOffset);
+                        int payloadOffset = -1;
                         bool payloadMatch = otaFastboot.Length > 0x1000
-                            && ContainsSequence(fastboot, otaFastboot.AsSpan(0x1000).ToArray(), out int payloadOffset);
+                            && ContainsSequence(fastboot, otaFastboot.AsSpan(0x1000).ToArray(), out payloadOffset);
                         fastbootMatchesOta = fullMatch || payloadMatch;
                         otaFastbootOffset = fullMatch ? fullOffset : payloadMatch ? payloadOffset : -1;
                         if (payloadMatch)
@@ -184,8 +185,9 @@ namespace Kirin_Tool.Services
                 if (fastboot != null)
                 {
                     bool fullMatch = ContainsSequence(fastboot, factoryFastboot, out int fullOffset);
+                    int payloadOffset = -1;
                     bool payloadMatch = factoryFastboot.Length > 0x1000
-                        && ContainsSequence(fastboot, factoryFastboot.AsSpan(0x1000).ToArray(), out int payloadOffset);
+                        && ContainsSequence(fastboot, factoryFastboot.AsSpan(0x1000).ToArray(), out payloadOffset);
                     fastbootMatchesFactory = fullMatch || payloadMatch;
                     factoryFastbootOffset = fullMatch ? fullOffset : payloadMatch ? payloadOffset : -1;
                     if (payloadMatch)
