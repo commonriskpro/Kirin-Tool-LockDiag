@@ -380,6 +380,43 @@
                                 </StackPanel>
                             </ui:CardExpander>
 
+                            <ui:CardExpander Header="Persist Factory Fastboot"
+                                         Icon="{ui:SymbolIcon LockShield24}"
+                                         Margin="0,0,0,16"
+                                         IsExpanded="False">
+                                <StackPanel>
+                                    <TextBlock Text="Flash the signed factory fastboot.img to the fastboot partition. Use after the full OTA and with the factory fastboot running from VCOM. Requires a testpoint recovery baseline."
+                                               TextWrapping="Wrap"
+                                               FontSize="12"
+                                               Foreground="{StaticResource SecondaryTextBrush}"
+                                               Margin="0,0,0,12"/>
+
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ui:TextBox Grid.Column="0"
+                                                    x:Name="TxtFactoryFastbootPath"
+                                                    PlaceholderText="Factory fastboot.img"
+                                                    IsReadOnly="True"
+                                                    Margin="0,0,8,0"/>
+                                        <ui:Button Grid.Column="1"
+                                                   Content="Browse"
+                                                   Icon="{ui:SymbolIcon FolderOpen16}"
+                                                   Click="BrowseFactoryFastboot_Click"/>
+                                    </Grid>
+
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                        <ui:Button Content="Flash &amp; Verify"
+                                                   Appearance="Caution"
+                                                   Width="140"
+                                                   Height="40"
+                                                   Click="FlashFactoryFastboot_Click"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </ui:CardExpander>
+
                             <ui:CardExpander Header="Software Testpoint"
                                          Icon="{ui:SymbolIcon UsbPlug24}"
                                          Margin="0,0,0,16"

@@ -105,6 +105,7 @@ namespace Kirin_Tool
         private readonly OemInfoService _oemInfoService;
         private readonly IContentDialogService _contentDialogService;
         private readonly FastbootFlasherService _fastbootFlasherService;
+        private readonly FactoryFastbootFlasherService _factoryFastbootFlasherService;
         private readonly USBUpdateFlasherService _usbUpdateFlasherService;
         private readonly SoftwareTestpointService _swTpService;
         private TaskCompletionSource<bool>? _globalInteractionTcs;
@@ -201,6 +202,7 @@ namespace Kirin_Tool
             _firmwareUnlocker = new FirmwareUnlocker();
             _oemInfoService = new OemInfoService(_fastbootClient);
             _fastbootFlasherService = new FastbootFlasherService(_xmlFastbootClient);
+            _factoryFastbootFlasherService = new FactoryFastbootFlasherService(_fastbootClient);
 
             _usbUpdateFlasherService = new USBUpdateFlasherService(
                 msg => { }, 
@@ -2726,6 +2728,79 @@ namespace Kirin_Tool
                 catch
                 {
                 }
+            }
+            catch (Exception ex)
+            {
+                progressDialog.UpdateOverallStatus($"Error: {ex.Message}");
+                progressDialog.ProgressItems[0].StatusText = "Failed";
+                progressDialog.ProgressItems[0].ProgressValue = 0;
+                progressDialog.ShowCloseButton(false);
+                await dialogTask;
+            }
+        }
+
+        private void BrowseFactoryFastboot_Click(object sender, RoutedEventArgs e)
+        {
+            var openDialog = new OpenFileDialog
+            {
+                Title = "Select signed factory fastboot.img",
+                Filter = "Image files (*.img)|*.img|All files (*.*)|*.*"
+            };
+
+            if (openDialog.ShowDialog() == true)
+                TxtFactoryFastbootPath.Text = openDialog.FileName;
+        }
+
+        private async void FlashFactoryFastboot_Click(object sender, RoutedEventArgs e)
+        {
+            string imagePath = TxtFactoryFastbootPath.Text.Trim();
+            if (string.IsNullOrWhiteSpace(imagePath) || !File.Exists(imagePath))
+            {
+                await ShowMessageBox("Input Error", "Select a valid signed factory fastboot.img.");
+                return;
+            }
+
+            if (!await _fastbootClient.IsDeviceConnected())
+            {
+                await ShowMessageBox("Device Not Found", "Load the factory fastboot via VCOM first, then try again.");
+                return;
+            }
+
+            var confirm = await _contentDialogService.ShowSimpleDialogAsync(new SimpleContentDialogCreateOptions
+            {
+                Title = "Flash factory fastboot?",
+                Content = "This writes the fastboot partition with the selected image. If the bootloader rejects it, the device may not boot; recover via testpoint. Use the signed factory fastboot.img, not the stock UPDATE.APP FASTBOOT block.\n\nContinue?",
+                PrimaryButtonText = "Flash & Verify",
+                CloseButtonText = "Cancel"
+            });
+
+            if (confirm != ContentDialogResult.Primary)
+                return;
+
+            var progressDialog = new ProgressDialog(new ObservableCollection<ProgressItemViewModel>
+            {
+                new ProgressItemViewModel { FileName = "Factory fastboot", StatusText = "Starting...", ProgressValue = 0 }
+            });
+
+            var dialogTask = _contentDialogService.ShowAsync(progressDialog, CancellationToken.None);
+            var progress = new Progress<string>(status =>
+            {
+                progressDialog.UpdateOverallStatus(status);
+                progressDialog.ProgressItems[0].StatusText = "Running";
+            });
+
+            try
+            {
+                string? baseUpdateApp = BaseUpdateFile.HasFile ? BaseUpdateFile.FilePath : null;
+                var result = await _factoryFastbootFlasherService.FlashAndVerifyAsync(imagePath, baseUpdateApp, progress);
+
+                progressDialog.ProgressItems[0].StatusText = result.IsUnlocked ? "Done" : "Failed";
+                progressDialog.ProgressItems[0].ProgressValue = result.IsUnlocked ? 100 : 0;
+                progressDialog.UpdateOverallStatus(result.Message);
+                progressDialog.ShowCloseButton(result.IsUnlocked);
+                await dialogTask;
+
+                await ShowMessageBox(result.IsUnlocked ? "Factory Fastboot Persisted" : "Factory Fastboot Not Verified", result.Message);
             }
             catch (Exception ex)
             {

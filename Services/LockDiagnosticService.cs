@@ -75,6 +75,9 @@ namespace Kirin_Tool.Services
             string bootInfo = await TryReadStringAsync(
                 () => _fastbootClient.OemCommandAsync("get-bootinfo", timeoutMinutes: 2),
                 "oem get-bootinfo", notes);
+            string buildNumber = await TryReadStringAsync(
+                () => _fastbootClient.OemCommandAsync("get-build-number", timeoutMinutes: 2),
+                "oem get-build-number", notes);
             string usrKeyRaw = await TryReadStringAsync(
                 () => _fastbootClient.ReadNveVariable("USRKEY"),
                 "getvar nve:USRKEY", notes);
@@ -158,7 +161,15 @@ namespace Kirin_Tool.Services
                 {
                     otaFastbootSha = Sha256Hex(otaFastboot);
                     if (fastboot != null)
-                        fastbootMatchesOta = ContainsSequence(fastboot, otaFastboot, out otaFastbootOffset);
+                    {
+                        bool fullMatch = ContainsSequence(fastboot, otaFastboot, out int fullOffset);
+                        bool payloadMatch = otaFastboot.Length > 0x1000
+                            && ContainsSequence(fastboot, otaFastboot.AsSpan(0x1000).ToArray(), out int payloadOffset);
+                        fastbootMatchesOta = fullMatch || payloadMatch;
+                        otaFastbootOffset = fullMatch ? fullOffset : payloadMatch ? payloadOffset : -1;
+                        if (payloadMatch)
+                            notes.Add("The fastboot dump matches the UPDATE.APP FASTBOOT payload at 0x1000 (OTA wrapper stripped).");
+                    }
                 }
             }
 
@@ -171,7 +182,21 @@ namespace Kirin_Tool.Services
                 factoryFastboot = await File.ReadAllBytesAsync(factoryFastbootPath);
                 factorySha = Sha256Hex(factoryFastboot);
                 if (fastboot != null)
-                    fastbootMatchesFactory = ContainsSequence(fastboot, factoryFastboot, out factoryFastbootOffset);
+                {
+                    bool fullMatch = ContainsSequence(fastboot, factoryFastboot, out int fullOffset);
+                    bool payloadMatch = factoryFastboot.Length > 0x1000
+                        && ContainsSequence(fastboot, factoryFastboot.AsSpan(0x1000).ToArray(), out int payloadOffset);
+                    fastbootMatchesFactory = fullMatch || payloadMatch;
+                    factoryFastbootOffset = fullMatch ? fullOffset : payloadMatch ? payloadOffset : -1;
+                    if (payloadMatch)
+                        notes.Add("The fastboot dump matches the factory fastboot payload at 0x1000 (container header stripped).");
+                }
+
+                if (!string.IsNullOrWhiteSpace(otaFastbootSha)
+                    && factorySha.Equals(otaFastbootSha, StringComparison.OrdinalIgnoreCase))
+                {
+                    notes.Add("The selected factory fastboot.img is byte-identical to the UPDATE.APP FASTBOOT block; it is the stock image, not the factory loader.");
+                }
             }
 
             string fbState = ParseOemLine(lockState, "FB LockState:");
@@ -181,6 +206,7 @@ namespace Kirin_Tool.Services
                 outputDirectory,
                 lockState,
                 bootInfo,
+                buildNumber,
                 usrKeyRaw,
                 usrKeyAltRaw,
                 fblockRaw,
@@ -240,6 +266,7 @@ namespace Kirin_Tool.Services
             string outputDirectory,
             string lockState,
             string bootInfo,
+            string buildNumber,
             string usrKeyRaw,
             string usrKeyAltRaw,
             string fblockRaw,
@@ -285,6 +312,8 @@ namespace Kirin_Tool.Services
             sb.AppendLine(lockState.Trim());
             sb.AppendLine("oem get-bootinfo:");
             sb.AppendLine(bootInfo.Trim());
+            sb.AppendLine("oem get-build-number:");
+            sb.AppendLine(buildNumber.Trim());
             sb.AppendLine($"Parsed: FB LockState={fbState}, USER LockState={userState}");
             sb.AppendLine();
 

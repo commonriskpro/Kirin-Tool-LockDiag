@@ -27,6 +27,21 @@ of an `UPDATE.APP` and/or a signed factory `fastboot.img`.
 The dumps require the factory fastboot loaded through VCOM; with the stock
 fastboot they will fail. The diagnostic does not write any partition.
 
+## Persist factory fastboot
+
+`VCOM Operations` → `Persist Factory Fastboot` writes a signed factory
+`fastboot.img` to the `fastboot` partition, reboots to the bootloader, and
+verifies `FB LockState` / `USER LockState` after the reboot.
+
+Select the signed factory image (for example `loaders/hisi970/fastboot.img`),
+not the `FASTBOOT` block extracted from `UPDATE.APP`. The tool strips the
+`0x1000` container header before flashing and refuses an image whose payload
+matches the stock OTA block.
+
+This is a write operation. Have the testpoint recovery baseline ready before
+running it; an image rejected by the xloader can leave the device unable to
+boot normally.
+
 ---
 
 *NOTICE: This tool is an independent software product and has not been authorized, sponsored, or otherwise approved by Huawei Technologies Co., Ltd. HiSilicon and Kirin are trademarks of Huawei Technologies Co., Ltd. All product and company names are trademarks™ or registered® trademarks of their respective holders. Use of them does not imply any affiliation with or endorsement by them.*
