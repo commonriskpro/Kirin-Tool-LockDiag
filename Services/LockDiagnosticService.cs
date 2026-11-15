@@ -107,10 +107,10 @@ namespace Kirin_Tool.Services
             var rootTypeEntry = LatestEntry(oemInfoEntries, 0x43);
             var rdlLockEntry = LatestEntry(oemInfoEntries, 0x82);
 
-            byte[]? usrKey = TryParseHex(usrKeyRaw);
+            byte[]? usrKey = TryParseUserKey(usrKeyRaw);
             if (usrKey == null || usrKey.Length != 32)
             {
-                var altKey = TryParseHex(usrKeyAltRaw);
+                var altKey = TryParseUserKey(usrKeyAltRaw);
                 if (altKey != null && altKey.Length == 32)
                 {
                     usrKey = altKey;
@@ -543,6 +543,22 @@ namespace Kirin_Tool.Services
             {
                 return null;
             }
+        }
+
+        private static byte[]? TryParseUserKey(string? value)
+        {
+            var hex = TryParseHex(value);
+            if (hex != null && hex.Length == 32)
+                return hex;
+
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                string text = value.Trim();
+                if (text.Length == 32)
+                    return Encoding.ASCII.GetBytes(text);
+            }
+
+            return hex;
         }
 
         private static string Sha256Hex(byte[] data) => Convert.ToHexString(SHA256.HashData(data));
